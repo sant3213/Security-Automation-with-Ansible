@@ -4,6 +4,7 @@
 1. [Installation](#installation)
 2. [Inventories](#inventories)
 3. [Configuration Files](#configuration-files)
+4. [Ansible Ad-hoc Commands](#ansible-ad-hoc-commands)
 
 ## Ansible Configuration
 
@@ -396,7 +397,9 @@ become_ask_pass=false # Whether Ansible should prompt for a password for privile
 ```
 
 **Demo**
+
 To create our own coniguration file:
+
 ```
 [automation@Host ~]$ mkdir configurationfile
 [automation@Host ~]$ vim /etc/ansible/ansible.cfg
@@ -556,7 +559,7 @@ serverb
     ```
     **Why does this happen?**
     This happens because Ansible is looking for a file named .ansible.cfg in the home directory, not ansible.cfg. Since we copied the configuration file under the name ansible.cfg, it isn’t being used by Ansible.
-    
+
 4. **Verify the Files in the Home Directory:**
 
     Move to the home directory and check for the copied configuration file:
@@ -592,3 +595,70 @@ serverb
 7. **Verify That the Home Directory Configuration is Being Used:**
 
     The output indicates that Ansible is running under the automation user (UID 1001). If the output matches your expectations, it confirms that Ansible is using the .ansible.cfg configuration file from the user's home directory, which takes precedence over the default configuration at /etc/ansible/ansible.cfg.
+
+## Ansible Ad-hoc Commands
+
+Ansible ad-hoc commands are used for single-use tasks that are typically simple and quick to execute. They are commonly employed for:
+
+- **Testing** specific actions or system conditions
+- **Performing quick changes** on managed hosts
+While ad-hoc commands are useful for straightforward system administration tasks, their functionality is limited compared to the full capabilities of Ansible. To harness Ansible's full power as an automation engine, you would typically use playbooks, which offer more control and reusability.
+
+
+    **Ad-hoc Command Syntax**
+
+    ```
+    #Ansbile ad-hoc commands
+
+    ansible <hosts> -m <module> -a '<arguments>' -i <inventory> -u <user>
+
+    ```
+**Breakdown of the Command:**
+- <**hosts**>: Specifies the target hosts or host groups, which must be defined in your inventory. You can also use all to target all hosts or ungrouped to target hosts that are not part of any group.
+
+- **-m** **<**module**>** : Specifies the Ansible module to be executed. Modules are the units of work in Ansible (e.g., ping, command, copy).
+
+- **-a** **<**arguments**>**: (Optional) Provides arguments to the specified module. This allows you to pass specific commands or options to the module.
+
+- **-i** **<**inventory**>:** Specifies the inventory file where the list of hosts and groups are defined. If this option is omitted, Ansible will look for the default inventory.
+
+- **-u** **<**user**>:** Defines the user Ansible will use to connect to the hosts. If omitted, Ansible will use the default user specified in the configuration
+
+    Let's look at some sample of Ansible ad-hoc commands
+
+    ```yaml
+    #Sample Ansible ad-hoc commands
+
+    ansible all -m ping # This command will ping all hosts within the inventory to check connectivity.
+
+    ansible servera -m copy -a 'content="Hello world"'
+    dest=/home/automation/helloworld # This command will copy the content "Hello world" to the file /home/automation/helloworld on "servera".
+
+    ansible servers -m command -a "hostname" # This command will run the "hostname" command on all hosts in the "servers" group, as defined in the inventory.
+
+
+    ansible serverb -m user -a 'name=test state=present' -i /home/automation/invenotory # This command will create a user called "test" on "serverb" using the inventory file located at /home/automation/inventory.
+
+    Ansible-doc user # This command will display detailed documentation about the "user" module and how to use it.
+
+    ```
+
+**Key Explanations:**
+- ansible all -m ping: The ping module is used to check connectivity with all hosts in the inventory.
+- ansible servera -m copy: The copy module is used to copy the content "Hello world" to the specified file on servera.
+- ansible servers -m command -a "hostname": The command module runs the specified shell command (in this case, hostname) on all hosts in the servers group.
+- ansible serverb -m user: The user module is used to create a new user named test on serverb.
+- ansible-doc user: This shows the built-in documentation for the user module, helping you understand how to use it effectively.
+
+**Basic Modules to Know**
+
+- **Ping:** It pings and you can check host accessibility.
+- **User:** Manages users on the managed host.
+- **Service:** Manages services on the managed host.
+- **Copy:** Copy a file to the managed host but can also used to create content.
+- **Yum:** Manage packages on the managed host.
+- **File:** Manage files on the managed host.
+- **Firewalld:** Manage the firewalld service on managed hosts.
+- **Reboot:** Reboot the managed hosts.
+- **URI:** Interact with web content.
+- **Nmcli:** MAnage networking on the managed hosts.
