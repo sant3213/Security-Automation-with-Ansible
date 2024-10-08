@@ -367,3 +367,228 @@ serverb | SUCCESS => {
 
 
 ## Configuration Files
+Ansible's behavior is controlled by its configuration file. By default, this file is located at `/etc/ansible/ansible.cfg`. However, the configuration file used by Ansible can be overridden by the following files or environment variables, in order of precedence:
+
+1. **Environment Variable(`ANSIBLE_CONFIG`):** If the ANSIBLE_CONFIG environment variable is defined, it will take precedence over all other configuration files.
+2. **Working Directory:** If an `ansible.cfg` file exists in the current working directory from which the Ansible command is run, it will override the default configuration.
+3. **Home Directory:** If an `.ansible.cfg` file exists in the home directory of the user running the command, it will take precedence over the default /etc/ansible/ansible.cfg file.
+4. **Default Configuration:** If none of the above is set, Ansible will use the default configuration at `/etc/ansible/ansible.cfg`.
+
+**Note:** Ansible does not merge settings from multiple configuration files. If a setting is not explicitly defined in the *active configuration file*, the default value from Ansible will be used.
+
+
+**Example: Configuration and Inventory**
+```yaml
+#Inventory file
+
+# You can list hosts by IP or hostname one per each line
+[defaults] # -> Default settings section
+inventory=/home/automation/inventory #Path to the inventory file used by Ansible
+remote_user=automation # User that Ansible will use to connect to managed hosts
+
+ask_pass=false # Whether Ansible should prompt for a password during connection
+
+[privilege_escalation] # -> Privilege escalation settings section
+become=true # Enables privilege escalation
+become_method=sudo # The method used to escalate privileges (e.g., sudo)
+become_user=root # The user to switch to after connection (root in this case)
+become_ask_pass=false # Whether Ansible should prompt for a password for privilege escalation
+```
+
+**Demo**
+To create our own coniguration file:
+```
+[automation@Host ~]$ mkdir configurationfile
+[automation@Host ~]$ vim /etc/ansible/ansible.cfg
+[automation@Host ~]$ cd configurationfile/
+[automation@Host configurationfile]$ vim ansible.cfg
+
+```
+**ansible.cfg file**
+```
+[defaults]
+inventory= /home/automation/configurationfile/inventory
+remote_user= automation
+
+[privilege_escalation]
+become= true
+become_method = sudo
+become_user= root
+become_ask_pass= false
+```
+
+```
+[automation@Host configurationfile]$ vim inventory
+```
+**inventory file**
+```
+servera
+serverb
+```
+1. Run a Ping Command Using the Configuration
+    ```
+    [automation@Host configurationfile]$ ansible all -m ping
+    ```
+    This command pings all hosts listed in the inventory file. Since the inventory is defined in the ansible.cfg file, there's no need to use the -i option.
+    ```
+    servera | SUCCESS => {
+        "ansible_facts": {
+            "discovered_interpreter_python": "/usr/libexec/platform-python"
+        },
+        "changes": false,
+        "ping": "pong"
+    }
+    serverb | SUCCESS => {
+        "ansible_facts": {
+            "discovered_interpreter_python": "/usr/libexec/platform-python"
+        },
+        "changes": false,
+        "ping": "pong"
+    }
+    ```
+
+    This command pings all hosts listed in the inventory file. Since the inventory is defined in the ansible.cfg file, there's no need to use the -i option.
+
+    **Explanation:** The output shows that Ansible is running as the root user on both servers due to the privilege escalation (become=true).
+
+2. **Check the User ID on Remote Hosts**
+    This command gives us the ID under which ansible is running on the manage hosts.
+    ```
+    [automation@Host configurationfile]$ ansible all -m command -a 'id'
+    servera | CHANGED | rc=0 >>
+    uid=0(root) gid=0(root) groups=0(root) context=unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023
+    serverb | CHANGED | rc=0
+    uid=0(root) gid=0(root) groups=0(root) context=unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023
+    ```
+
+    **Explanation:** The output shows that Ansible is running as the root user on both servers due to the privilege escalation (become=true).
+
+    As you can see it has a UID of 0 that means we are running as the root user.
+
+**Updating the Configuration File**
+1. Modify the Inventory File to `inventory2`
+    ```
+    [automation@Host configurationfile]$ vim ansible.cfg
+    ```
+
+    Update the inventory setting in `ansible.cfg`
+    ```
+    [defaults]
+    inventory= /home/automation/configurationfile/inventory2
+    remote_user= automation
+
+    [privilege_escalation]
+    become= true
+    become_method = sudo
+    become_user= root
+    become_ask_pass= false
+    ```
+    Create the new inventory file: `inventory2.cfg`
+    ```
+    [automation@Host configurationfile]$ vim inventory2.cfg
+    ```
+
+    ```
+    servera
+    ```
+
+    Now, run the ping command again:
+
+    ```
+    [automation@Host configurationfile]$ ansible all -m ping
+
+    servera | SUCCESS => {
+        "ansible_facts": {
+            "discovered_interpreter_python": "/usr/libexec/platform-python"
+        },
+        "changes": false,
+        "ping": "pong"
+    }
+
+    ```
+    **Explanation:** Only servera responds because serverb is not in inventory2.
+
+ 2. Disable Privilege Escalation
+     Update the privilege escalation setting:
+     ```
+     [defaults]
+     inventory= /home/automation/configurationfile/inventory2
+     remote_user= automation
+
+     [privilege_escalation]
+     become= false       # <=======
+     become_method = sudo
+     become_user= root
+     become_ask_pass= false
+     ```
+
+    ```
+    [automation@Host configurationfile]$ ansible all -m command -a 'id'
+    ```
+
+    ```
+    servera | CHANGED | rc=0 >>
+    uid=1001(automation) gid=1001(automation) groups=1001(automation) context=unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023
+    ```
+    **Explanation:** Ansible is now running as the automation user because privilege escalation is disabled (become=false).
+
+**Moving the Configuration to the Home Directory**
+1. **Copy `ansible.cfg` to the Home Directory:**
+
+    ```
+    [automation@Host configurationfile]$ cp ansible.cfg /home/automation/ansible.cfg
+    ```
+2. **Remove the Existing Configuration File in the Working Directory:**
+
+    After copying the configuration file, remove the existing ansible.cfg from the current working directory to avoid confusion:
+   ```
+   rm -f ansible.cfg
+   ```
+
+3. **Run the Ansible Command:**
+    Now, attempt to run the same Ansible command to check the user ID on the remote hosts:
+    ```
+    [automation@Host configurationfile]$ ansible all -m command -a 'id'
+    ```
+    This will likely produce the following warning:
+    ```
+    [WARNING]: provided hosts list is empty, only localhost is available. Note that the implicit localhost does not match 'all'
+    ```
+    **Why does this happen?**
+    This happens because Ansible is looking for a file named .ansible.cfg in the home directory, not ansible.cfg. Since we copied the configuration file under the name ansible.cfg, it isn’t being used by Ansible.
+    
+4. **Verify the Files in the Home Directory:**
+
+    Move to the home directory and check for the copied configuration file:
+    ```
+    [automation@Host configurationfile]$ cd ..
+    [automation@Host ~]$ ls
+
+    ansible.cfg configurationfile
+
+    ```
+    You’ll see that the file is named ansible.cfg, but Ansible expects it to be .ansible.cfg.
+
+5. **Rename the File to `.ansible.cfg`:**
+   Rename the configuration file to .ansible.cfg, which is the correct name for Ansible to recognize the file in the user’s home directory:
+    ```
+    [automation@Host ~]$ mv ansible.cfg .ansible/
+    cp/ tmp/
+    [automation@Host ~]$ mv ansible.cfg .ansible.cfg
+    [automation@Host ~]$ ansible all -m command -a 'id'
+    servera | CHANGED | rc=0 >>
+    uid=1001(automation) gid=1001(automation) groups=1001(automation) context=unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023
+    [automation@Host ~]$ cd configurationfile/
+    ```
+6. **Run the Ansible Command Again:**
+    Now, run the Ansible command again to check the user ID on the remote hosts:
+
+    ```
+    [automation@Host configurationfile]$ ansible all -m command -a 'id'
+    servera | CHANGED | rc=0 >>
+    uid=1001(automation) gid=1001(automation) groups=1001(automation) context=unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023
+    [automation@Host ~]$ 
+    ```
+7. **Verify That the Home Directory Configuration is Being Used:**
+
+    The output indicates that Ansible is running under the automation user (UID 1001). If the output matches your expectations, it confirms that Ansible is using the .ansible.cfg configuration file from the user's home directory, which takes precedence over the default configuration at /etc/ansible/ansible.cfg.
