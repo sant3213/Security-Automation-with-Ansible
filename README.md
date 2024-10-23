@@ -5,6 +5,7 @@
 2. [Inventories](#inventories)
 3. [Configuration Files](#configuration-files)
 4. [Ansible Ad-hoc Commands](#ansible-ad-hoc-commands)
+5. [Ansible Playbooks](#ansible-playbooks)
 
 ## Ansible Configuration
 
@@ -662,3 +663,108 @@ While ad-hoc commands are useful for straightforward system administration tasks
 - **Reboot:** Reboot the managed hosts.
 - **URI:** Interact with web content.
 - **Nmcli:** MAnage networking on the managed hosts.
+
+
+## Ansible Playbooks
+
+### Playbooks Overview
+Playbooks are a sequence of plays, and each play is a series of tasks performed on managed hosts specified in the inventory. The purpose of playbooks is to simplify administrative tasks by organizing them into easy, repeatable routines.
+
+- Tasks in a Playbook: Tasks work together within a playbook to document the steps needed to achieve a desired outcome. These tasks are executed sequentially, from top to bottom.
+
+- Repeatability: Playbooks are designed to be reusable, meaning they can be executed multiple times for consistent results.
+
+- YAML Format: Playbooks are written in YAML format and are typically saved with the .yaml or .yml file extension. YAML ensures human-readable and structured files:
+
+  - The start of a playbook is denoted by ---.
+  - Strings do not require quotation marks, but using them improves readability.
+- Multiple Plays: You can define multiple plays within a single playbook.
+
+- Task Execution: By default, if a task fails during execution, the playbook will stop, preventing subsequent tasks from running.
+
+### Output Color Coding
+
+When running a playbook, Ansible provides color-coded output to indicate the status of each task. The colors represent the following states:
+
+- **🟢 Green**: The system is already at the desired state, so no changes were required.
+  
+- **🟡 Yellow**: A change has been made to the system to bring it to the desired state.
+
+- **🔴 Red**: An error occurred, and the task could not be completed successfully.
+
+
+```yml
+#Sample playbook This playbook will make sure the user called "test" exists on servera
+
+---   # <== Start of playbook with 3 lines
+
+-   name: Create new user # Name of play
+
+    hosts: servera                          # Specify the target host(s) for this play (in this case, servera)
+    tasks:                                  # Begin the list of tasks to be executed on the target host(s)
+        - name: Ensure the user is created  # Descriptive name of the task
+          user:                             # Ansible user module to manage users
+            name: test                      # Specify the username ('test') to ensure it exists
+            state: present                  # Ensure the user is in the 'present' state (i.e., created)
+
+```
+
+```yml
+---
+---
+# This playbook performs two tasks on serverb:
+# 1. Installs the firewalld service using the yum package manager.
+# 2. Ensures the firewalld service is started.
+
+-   name: Ensure firewalld is installed and running   # Name of the play
+
+    hosts: serverb                                    # Target host(s) for the play (in this case, serverb)
+    tasks:                                            # List of tasks to execute
+        - name: Install firewalld service             # Task to install the firewalld package
+          yum:                                        # Ansible yum module for package management on RedHat-based systems
+            name: firewalld                           # Specify the firewalld package to install
+            state: latest                             # Ensure the latest version of firewalld is installed
+
+        - name: Start the firewalld service           # Task to start the firewalld service
+          service:                                    # Ansible service module for managing services
+            name: firewalld                           # Specify the service to manage (firewalld)
+            state: started                            # Ensure the service is in the 'started' state
+
+
+```
+
+This is how you can customize configuration options for individual playbooks. These options will take precedence over the global Ansible configuration file (`ansible.cfg`).
+
+Remote User: You can specify the remote user Ansible will use to connect to the managed host.
+Privilege Escalation: You can use the `become` option to elevate privileges, switch to a different user (`become_user`), and specify the method (e.g., `sudo`).
+
+```yml
+---
+# Sample playbook to illustrate remote user and privilege escalation configuration
+
+- name: Myplay  # Name of the play
+
+  become: true                # Enable privilege escalation
+  become_user: <user>         # Specify the user to switch to (e.g., root)
+  become_method: sudo         # Use sudo as the privilege escalation method
+  remote_user: <user>         # Remote user Ansible will use to connect to the managed host
+  hosts: serverb              # Specify the target host(s)
+  tasks:                      # List of tasks (no tasks defined in this sample)
+
+```
+
+### Ansible Playbook Commands: 
+
+- **Run a playbook:** 
+  
+  ``` ansible-playbook <playbookfile.yml> ```
+
+- **Verify the syntax of a playbook**
+
+  ``ansible-playbook --syntax-check <playbookfile.yml>``
+
+- **Dry run a playbook (see what changes would be made without making them)**
+  
+  ```ansible-playbook -C <playbookfile.yml>```
+
+
